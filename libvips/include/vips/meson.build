@@ -82,14 +82,35 @@ if get_option('deprecated')
     )
 endif
 
-enumtypes = gnome.mkenums(
-    'enumtypes',
-    sources: enum_headers,
-    h_template: 'enumtypes.h.in',
-    c_template: 'enumtypes.c.in',
-    install_header: true,
-    install_dir: get_option('prefix') / get_option('includedir') / 'vips'
-)
+if glib_dep.type_name() != 'internal'
+    enumtypes = gnome.mkenums(
+        'enumtypes',
+        sources: enum_headers,
+        h_template: 'enumtypes.h.in',
+        c_template: 'enumtypes.c.in',
+        install_header: true,
+        install_dir: get_option('prefix') / get_option('includedir') / 'vips'
+    )
+else
+    python3 = find_program('python3')
+    glib_mkenums = subproject('glib').get_variable('glib_mkenums')
+    enumtypes = [
+        custom_target('vips-enumtypes-source',
+            output: 'enumtypes.c',
+            input: enum_headers,
+            command: [python3, glib_mkenums, '--template', meson.current_source_dir() / 'enumtypes.c.in', '@INPUT@'],
+            capture: true,
+        ),
+        custom_target('vips-enumtypes-header',
+            output: 'enumtypes.h',
+            input: enum_headers,
+            command: [python3, glib_mkenums, '--template', meson.current_source_dir() / 'enumtypes.h.in', '@INPUT@'],
+            capture: true,
+            install: true,
+            install_dir: get_option('prefix') / get_option('includedir') / 'vips'
+        ),
+    ]
+endif
 
 vips_verbose_config = []
 foreach _, section : build_summary

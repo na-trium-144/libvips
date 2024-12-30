@@ -44,11 +44,29 @@ iofuncs_headers = files(
     'sink.h',
 )
 
-vipsmarshal = gnome.genmarshal(
-    'vipsmarshal',
-    prefix: 'vips',
-    sources: 'vipsmarshal.list',
-)
+# MSVCでエラーになる (mesonのバグ?) https://github.com/na-trium-144/webcface/actions/runs/12542157738/job/34971586753?pr=441
+if glib_dep.type_name() != 'internal'
+    vipsmarshal = gnome.genmarshal(
+        'vipsmarshal',
+        prefix: 'vips',
+        sources: 'vipsmarshal.list',
+    )
+else
+    python3 = find_program('python3')
+    glib_genmarshal = subproject('glib').get_variable('glib_genmarshal')
+    vipsmarshal = [
+        custom_target('vipsmarshal-header',
+            output: 'vipsmarshal.h',
+            input: 'vipsmarshal.list',
+            command: [python3, glib_genmarshal, '--quiet', '--prefix', 'vips', '--output', '@OUTPUT@', '--header', '@INPUT@', '--pragma-once' ],
+        ),
+        custom_target('vipsmarshal-source',
+            output: 'vipsmarshal.c',
+            input: 'vipsmarshal.list',
+            command: [python3, glib_genmarshal, '--quiet', '--prefix', 'vips', '--output', '@OUTPUT@', '--body', '@INPUT@', '--pragma-once' ],
+        ),
+    ]
+endif
 
 libvips_sources += iofuncs_sources
 
