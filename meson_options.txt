@@ -1,4 +1,24 @@
 # core options
+option('man',
+  type: 'boolean',
+  value: false,
+)
+option('po',
+  type: 'boolean',
+  value: true,
+)
+option('tools',
+  type: 'boolean',
+  value: true,
+)
+option('test',
+  type: 'boolean',
+  value: true,
+)
+option('fuzz',
+  type: 'boolean',
+  value: true,
+)
 
 option('deprecated',
   type: 'boolean',
