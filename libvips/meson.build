@@ -34,9 +34,14 @@ libvips_dep = declare_dependency(
     dependencies: libvips_deps,
 )
 
+if glib_dep.type_name() == 'internal'
+    libvips_requires = []
+else
+    libvips_requires = [ glib_dep, gio_dep, gobject_dep ]
+endif
 pkg.generate(
     libvips_lib,
-    requires: [ glib_dep, gio_dep, gobject_dep ],
+    requires: libvips_requires,
     name: 'vips',
     description: 'Image processing library',
 )

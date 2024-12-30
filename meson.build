@@ -343,7 +343,7 @@ if libjpeg_dep.found()
     # features like trellis quant are exposed as extension parameters ...
     # mozjpeg 3.2 and later have #define JPEG_C_PARAM_SUPPORTED, but we must
     # work with earlier versions
-    if cc.has_function('jpeg_c_bool_param_supported', prefix: '#include <stdio.h>\n#include <jpeglib.h>', dependencies: libjpeg_dep)
+    if libjpeg_dep.type_name() != 'internal' and cc.has_function('jpeg_c_bool_param_supported', prefix: '#include <stdio.h>\n#include <jpeglib.h>', dependencies: libjpeg_dep)
         cfg_var.set('HAVE_JPEG_EXT_PARAMS', '1')
     endif
 endif

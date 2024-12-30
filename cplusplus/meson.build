@@ -20,9 +20,14 @@ libvips_cpp_dep = declare_dependency(
     include_directories: libvips_cpp_includedir,
 )
 
+if glib_dep.type_name() == 'internal'
+    libvips_requires = []
+else
+    libvips_requires = [ glib_dep, gobject_dep ]
+endif
 pkg.generate(
     libvips_cpp_lib,
-    requires: [ libvips_lib, glib_dep, gobject_dep ],
+    requires: [ libvips_lib, libvips_requires ],
     name: 'vips-cpp',
     description: 'C++ API for vips8 image processing library',
 )
