@@ -448,27 +448,29 @@ G_DEFINE_TYPE(VipsComplex2, vips_complex2, VIPS_TYPE_BINARY);
 
 #define CROSS(Q, X1, Y1, X2, Y2) \
 	{ \
-		double x1 = X1, y1 = Y1, x2 = X2, y2 = Y2; \
-		if (((x1) == 0.0 && (y1) == 0.0) || \
-			((x2) == 0.0 && (y2) == 0.0)) { \
+		if (((X1) == 0.0 && (Y1) == 0.0) || \
+			((X2) == 0.0 && (Y2) == 0.0) || \
+			((Y1) == 0.0 && (Y2) == 0.0)) { \
 			Q[0] = 0.0; \
 			Q[1] = 0.0; \
 		} \
-		else if (ABS(y1) > ABS(y2)) { \
-			double a = y2 / y1; \
-			double b = y1 + y2 * a; \
-			double re = (x1 + x2 * a) / b; \
-			double im = (x2 - x1 * a) / b; \
+		else if (ABS(Y1) > ABS(Y2)) { \
+			double y1 = Y1; /* this suppress C2142 (division by zero) error on MSVC */ \
+			double a = Y2 / y1; \
+			double b = Y1 + Y2 * a; \
+			double re = (X1 + X2 * a) / b; \
+			double im = (X2 - X1 * a) / b; \
 			double mod = hypot(re, im); \
 \
 			Q[0] = re / mod; \
 			Q[1] = im / mod; \
 		} \
 		else { \
-			double a = y1 / y2; \
-			double b = y2 + y1 * a; \
-			double re = (x1 * a + x2) / b; \
-			double im = (x2 * a - x1) / b; \
+			double y2 = Y2; \
+			double a = Y1 / y2; \
+			double b = Y2 + Y1 * a; \
+			double re = (X1 * a + X2) / b; \
+			double im = (X2 * a - X1) / b; \
 			double mod = hypot(re, im); \
 \
 			Q[0] = re / mod; \
