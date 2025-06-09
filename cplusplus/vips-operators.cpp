@@ -2316,6 +2316,19 @@ VImage::matrixload_source(VSource source, VOption *options)
 	return out;
 }
 
+VImage
+VImage::matrixmultiply(VImage right, VOption *options) const
+{
+	VImage out;
+
+	call("matrixmultiply", (options ? options : VImage::option())
+			->set("left", *this)
+			->set("out", &out)
+			->set("right", right));
+
+	return out;
+}
+
 void
 VImage::matrixprint(VOption *options) const
 {
@@ -2718,6 +2731,18 @@ VImage::ppmload(const char *filename, VOption *options)
 }
 
 VImage
+VImage::ppmload_buffer(VipsBlob *buffer, VOption *options)
+{
+	VImage out;
+
+	call("ppmload_buffer", (options ? options : VImage::option())
+			->set("out", &out)
+			->set("buffer", buffer));
+
+	return out;
+}
+
+VImage
 VImage::ppmload_source(VSource source, VOption *options)
 {
 	VImage out;
@@ -3057,6 +3082,20 @@ VImage::remainder_const(std::vector<double> c, VOption *options) const
 			->set("in", *this)
 			->set("out", &out)
 			->set("c", c));
+
+	return out;
+}
+
+VImage
+VImage::remosaic(const char *old_str, const char *new_str, VOption *options) const
+{
+	VImage out;
+
+	call("remosaic", (options ? options : VImage::option())
+			->set("in", *this)
+			->set("out", &out)
+			->set("old_str", old_str)
+			->set("new_str", new_str));
 
 	return out;
 }

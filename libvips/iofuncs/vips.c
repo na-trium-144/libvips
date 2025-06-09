@@ -103,20 +103,6 @@
 #include <vips/debug.h>
 #include <vips/internal.h>
 
-/**
- * SECTION: vips
- * @short_description: startup, shutdown, version
- * @stability: Stable
- * @see_also: <link linkend="VipsOperation">VipsOperation</link>
- * @include: vips/vips.h
- *
- * Start VIPS up, shut VIPS down, get version information, relocation.
- *
- * VIPS is a relocatable package, meaning you can move the directory tree you
- * compiled it to at runtime and it will still be able to find all data files.
- * This is required for OS X and Windows, but slightly unusual in the Unix
- * world. See vips_init() and vips_guess_prefix().
- */
 
 /* Open mode for image write.
  *
@@ -386,7 +372,7 @@ vips__read_header_bytes(VipsImage *im, unsigned char *from)
 	 * pixel interpretation, don't clip them.
 	 */
 
-	/* Coding values imply Bands and BandFmt settings --- make sure they
+	/* Coding values imply Bands and BandFmt settings -- make sure they
 	 * are sane.
 	 */
 	switch (im->Coding) {
@@ -1052,8 +1038,8 @@ vips_image_open_input(VipsImage *image)
 		return -1;
 	image->file_length = rsize;
 	if (psize > rsize)
-		g_warning(_("unable to read data for \"%s\", %s"),
-			image->filename, _("file has been truncated"));
+		g_warning("unable to read data for \"%s\", %s",
+			image->filename, "file has been truncated");
 
 	/* Set demand style. This suits a disc file we read sequentially.
 	 */
@@ -1064,7 +1050,7 @@ vips_image_open_input(VipsImage *image)
 	 * harmless.
 	 */
 	if (readhist(image)) {
-		g_warning(_("error reading vips image metadata: %s"),
+		g_warning("error reading vips image metadata: %s",
 			vips_error_buffer());
 		vips_error_clear();
 	}

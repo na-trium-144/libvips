@@ -2082,6 +2082,7 @@ public:
 
 	// headers for vips operations
 	// this file is generated automatically, do not edit!
+	// clang-format off
 
 	/**
 	 * Transform lch to cmc.
@@ -3765,6 +3766,7 @@ public:
 	 *
 	 * **Optional parameters**
 	 *   - **page** -- Load this page from the image, int.
+	 *   - **oneshot** -- Load images a frame at a time, bool.
 	 *   - **memory** -- Force open via memory, bool.
 	 *   - **access** -- Required access pattern for this file, VipsAccess.
 	 *   - **fail_on** -- Error level to fail on, VipsFailOn.
@@ -3781,6 +3783,7 @@ public:
 	 *
 	 * **Optional parameters**
 	 *   - **page** -- Load this page from the image, int.
+	 *   - **oneshot** -- Load images a frame at a time, bool.
 	 *   - **memory** -- Force open via memory, bool.
 	 *   - **access** -- Required access pattern for this file, VipsAccess.
 	 *   - **fail_on** -- Error level to fail on, VipsFailOn.
@@ -3797,6 +3800,7 @@ public:
 	 *
 	 * **Optional parameters**
 	 *   - **page** -- Load this page from the image, int.
+	 *   - **oneshot** -- Load images a frame at a time, bool.
 	 *   - **memory** -- Force open via memory, bool.
 	 *   - **access** -- Required access pattern for this file, VipsAccess.
 	 *   - **fail_on** -- Error level to fail on, VipsFailOn.
@@ -4520,7 +4524,7 @@ public:
 	static VImage matload(const char *filename, VOption *options = nullptr);
 
 	/**
-	 * Invert an matrix.
+	 * Invert a matrix.
 	 * @param options Set of options.
 	 * @return Output matrix.
 	 */
@@ -4555,6 +4559,14 @@ public:
 	 * @return Output image.
 	 */
 	static VImage matrixload_source(VSource source, VOption *options = nullptr);
+
+	/**
+	 * Multiply two matrices.
+	 * @param right Second matrix to multiply.
+	 * @param options Set of options.
+	 * @return Output matrix.
+	 */
+	VImage matrixmultiply(VImage right, VOption *options = nullptr) const;
 
 	/**
 	 * Print matrix.
@@ -5062,7 +5074,22 @@ public:
 	static VImage ppmload(const char *filename, VOption *options = nullptr);
 
 	/**
-	 * Load ppm base class.
+	 * Load ppm from buffer.
+	 *
+	 * **Optional parameters**
+	 *   - **memory** -- Force open via memory, bool.
+	 *   - **access** -- Required access pattern for this file, VipsAccess.
+	 *   - **fail_on** -- Error level to fail on, VipsFailOn.
+	 *   - **revalidate** -- Don't use a cached result for this operation, bool.
+	 *
+	 * @param buffer Buffer to load from.
+	 * @param options Set of options.
+	 * @return Output image.
+	 */
+	static VImage ppmload_buffer(VipsBlob *buffer, VOption *options = nullptr);
+
+	/**
+	 * Load ppm from source.
 	 *
 	 * **Optional parameters**
 	 *   - **memory** -- Force open via memory, bool.
@@ -5414,6 +5441,15 @@ public:
 	VImage remainder_const(std::vector<double> c, VOption *options = nullptr) const;
 
 	/**
+	 * Rebuild an mosaiced image.
+	 * @param old_str Search for this string.
+	 * @param new_str And swap for this string.
+	 * @param options Set of options.
+	 * @return Output image.
+	 */
+	VImage remosaic(const char *old_str, const char *new_str, VOption *options = nullptr) const;
+
+	/**
 	 * Replicate an image.
 	 * @param across Repeat this many times horizontally.
 	 * @param down Repeat this many times vertically.
@@ -5513,7 +5549,7 @@ public:
 	VImage scRGB2XYZ(VOption *options = nullptr) const;
 
 	/**
-	 * Convert an scrgb image to srgb.
+	 * Convert scrgb to srgb.
 	 *
 	 * **Optional parameters**
 	 *   - **depth** -- Output device space depth in bits, int.
@@ -5758,6 +5794,8 @@ public:
 	 *   - **dpi** -- Render at this DPI, double.
 	 *   - **scale** -- Scale output by this factor, double.
 	 *   - **unlimited** -- Allow SVG of any size, bool.
+	 *   - **stylesheet** -- Custom CSS, const char *.
+	 *   - **high_bitdepth** -- Enable scRGB 128-bit output (32-bit per channel), bool.
 	 *   - **memory** -- Force open via memory, bool.
 	 *   - **access** -- Required access pattern for this file, VipsAccess.
 	 *   - **fail_on** -- Error level to fail on, VipsFailOn.
@@ -5776,6 +5814,8 @@ public:
 	 *   - **dpi** -- Render at this DPI, double.
 	 *   - **scale** -- Scale output by this factor, double.
 	 *   - **unlimited** -- Allow SVG of any size, bool.
+	 *   - **stylesheet** -- Custom CSS, const char *.
+	 *   - **high_bitdepth** -- Enable scRGB 128-bit output (32-bit per channel), bool.
 	 *   - **memory** -- Force open via memory, bool.
 	 *   - **access** -- Required access pattern for this file, VipsAccess.
 	 *   - **fail_on** -- Error level to fail on, VipsFailOn.
@@ -5794,6 +5834,8 @@ public:
 	 *   - **dpi** -- Render at this DPI, double.
 	 *   - **scale** -- Scale output by this factor, double.
 	 *   - **unlimited** -- Allow SVG of any size, bool.
+	 *   - **stylesheet** -- Custom CSS, const char *.
+	 *   - **high_bitdepth** -- Enable scRGB 128-bit output (32-bit per channel), bool.
 	 *   - **memory** -- Force open via memory, bool.
 	 *   - **access** -- Required access pattern for this file, VipsAccess.
 	 *   - **fail_on** -- Error level to fail on, VipsFailOn.
@@ -5856,8 +5898,8 @@ public:
 	 *   - **no_rotate** -- Don't use orientation tags to rotate image upright, bool.
 	 *   - **crop** -- Reduce to fill target rectangle, then crop, VipsInteresting.
 	 *   - **linear** -- Reduce in linear light, bool.
-	 *   - **import_profile** -- Fallback import profile, const char *.
-	 *   - **export_profile** -- Fallback export profile, const char *.
+	 *   - **input_profile** -- Fallback input profile, const char *.
+	 *   - **output_profile** -- Fallback output profile, const char *.
 	 *   - **intent** -- Rendering intent, VipsIntent.
 	 *   - **fail_on** -- Error level to fail on, VipsFailOn.
 	 *
@@ -5878,8 +5920,8 @@ public:
 	 *   - **no_rotate** -- Don't use orientation tags to rotate image upright, bool.
 	 *   - **crop** -- Reduce to fill target rectangle, then crop, VipsInteresting.
 	 *   - **linear** -- Reduce in linear light, bool.
-	 *   - **import_profile** -- Fallback import profile, const char *.
-	 *   - **export_profile** -- Fallback export profile, const char *.
+	 *   - **input_profile** -- Fallback input profile, const char *.
+	 *   - **output_profile** -- Fallback output profile, const char *.
 	 *   - **intent** -- Rendering intent, VipsIntent.
 	 *   - **fail_on** -- Error level to fail on, VipsFailOn.
 	 *
@@ -5899,8 +5941,8 @@ public:
 	 *   - **no_rotate** -- Don't use orientation tags to rotate image upright, bool.
 	 *   - **crop** -- Reduce to fill target rectangle, then crop, VipsInteresting.
 	 *   - **linear** -- Reduce in linear light, bool.
-	 *   - **import_profile** -- Fallback import profile, const char *.
-	 *   - **export_profile** -- Fallback export profile, const char *.
+	 *   - **input_profile** -- Fallback input profile, const char *.
+	 *   - **output_profile** -- Fallback output profile, const char *.
 	 *   - **intent** -- Rendering intent, VipsIntent.
 	 *   - **fail_on** -- Error level to fail on, VipsFailOn.
 	 *
@@ -5920,8 +5962,8 @@ public:
 	 *   - **no_rotate** -- Don't use orientation tags to rotate image upright, bool.
 	 *   - **crop** -- Reduce to fill target rectangle, then crop, VipsInteresting.
 	 *   - **linear** -- Reduce in linear light, bool.
-	 *   - **import_profile** -- Fallback import profile, const char *.
-	 *   - **export_profile** -- Fallback export profile, const char *.
+	 *   - **input_profile** -- Fallback input profile, const char *.
+	 *   - **output_profile** -- Fallback output profile, const char *.
 	 *   - **intent** -- Rendering intent, VipsIntent.
 	 *   - **fail_on** -- Error level to fail on, VipsFailOn.
 	 *
@@ -5937,9 +5979,10 @@ public:
 	 *
 	 * **Optional parameters**
 	 *   - **page** -- First page to load, int.
-	 *   - **subifd** -- Subifd index, int.
 	 *   - **n** -- Number of pages to load, -1 for all, int.
 	 *   - **autorotate** -- Rotate image using orientation tag, bool.
+	 *   - **subifd** -- Subifd index, int.
+	 *   - **unlimited** -- Remove all denial of service limits, bool.
 	 *   - **memory** -- Force open via memory, bool.
 	 *   - **access** -- Required access pattern for this file, VipsAccess.
 	 *   - **fail_on** -- Error level to fail on, VipsFailOn.
@@ -5956,9 +5999,10 @@ public:
 	 *
 	 * **Optional parameters**
 	 *   - **page** -- First page to load, int.
-	 *   - **subifd** -- Subifd index, int.
 	 *   - **n** -- Number of pages to load, -1 for all, int.
 	 *   - **autorotate** -- Rotate image using orientation tag, bool.
+	 *   - **subifd** -- Subifd index, int.
+	 *   - **unlimited** -- Remove all denial of service limits, bool.
 	 *   - **memory** -- Force open via memory, bool.
 	 *   - **access** -- Required access pattern for this file, VipsAccess.
 	 *   - **fail_on** -- Error level to fail on, VipsFailOn.
@@ -5975,9 +6019,10 @@ public:
 	 *
 	 * **Optional parameters**
 	 *   - **page** -- First page to load, int.
-	 *   - **subifd** -- Subifd index, int.
 	 *   - **n** -- Number of pages to load, -1 for all, int.
 	 *   - **autorotate** -- Rotate image using orientation tag, bool.
+	 *   - **subifd** -- Subifd index, int.
+	 *   - **unlimited** -- Remove all denial of service limits, bool.
 	 *   - **memory** -- Force open via memory, bool.
 	 *   - **access** -- Required access pattern for this file, VipsAccess.
 	 *   - **fail_on** -- Error level to fail on, VipsFailOn.

@@ -27,6 +27,14 @@ class TestForeign:
         im = pyvips.Image.new_from_file(GIF_FILE)
         cls.onebit = im[1] > 128
 
+        all = [cls.mono, cls.colour, cls.cmyk]
+        # and alpha variants of all of them
+        alpha = [x.bandjoin(255) for x in all]
+        # and with a second alpha
+        alpha2 = [x.bandjoin(255) for x in alpha]
+
+        cls.all = all + alpha + alpha2
+
     @classmethod
     def teardown_class(cls):
         shutil.rmtree(cls.tempdir, ignore_errors=True)
@@ -35,6 +43,7 @@ class TestForeign:
         cls.mono = None
         cls.cmyk = None
         cls.onebit = None
+        cls.all = None
 
     # we have test files for formats which have a clear standard
     def file_loader(self, loader, test_file, validate):
@@ -147,6 +156,10 @@ class TestForeign:
         self.buffer_loader("jpegload_buffer", JPEG_FILE, jpeg_valid)
         self.save_load_buffer("jpegsave_buffer", "jpegload_buffer",
                               self.colour, 80)
+
+        for image in self.all:
+            target = pyvips.Target.new_to_memory()
+            image.jpegsave_target(target)
 
         # see if we have exif parsing: our test image has this field
         x = pyvips.Image.new_from_file(JPEG_FILE)
@@ -422,6 +435,10 @@ class TestForeign:
         self.save_load_file(".png", "[interlace]", self.colour)
         self.save_load_file(".png", "[interlace]", self.mono)
 
+        for image in self.all:
+            target = pyvips.Target.new_to_memory()
+            image.pngsave_target(target)
+
         def png_indexed_valid(im):
             a = im(10, 10)
             assert_almost_equal_objects(a, [148.0, 131.0, 109.0])
@@ -432,7 +449,8 @@ class TestForeign:
             assert im.get("palette") == 1
 
         self.file_loader("pngload", PNG_INDEXED_FILE, png_indexed_valid)
-        self.buffer_loader("pngload_buffer", PNG_INDEXED_FILE, png_indexed_valid)
+        self.buffer_loader("pngload_buffer",
+            PNG_INDEXED_FILE, png_indexed_valid)
 
         # size of a regular mono PNG
         len_mono = len(self.mono.write_to_buffer(".png"))
@@ -482,7 +500,24 @@ class TestForeign:
             "exif-ifd0-ImageDescription", "test description")
         im2 = pyvips.Image.new_from_buffer(
             im1.write_to_buffer(".png"), "")
-        assert im2.get("exif-ifd0-ImageDescription").startswith("test description")
+        assert im2.get("exif-ifd0-ImageDescription") \
+            .startswith("test description")
+
+        # https://github.com/libvips/libvips/issues/4509
+        data = self.rgba.cast("double").write_to_buffer(".png")
+        after = pyvips.Image.new_from_buffer(data, "")
+        assert (self.rgba - after).abs().max() == 0
+
+        # we should be able to save an 8-bit image as a 16-bit PNG
+        rgb = pyvips.Image.new_from_file(JPEG_FILE)
+        data = rgb.pngsave_buffer(bitdepth=16)
+        rgb16 = pyvips.Image.pngload_buffer(data)
+        assert rgb16.format == "ushort"
+
+        # we should be able to save a 16-bit image as a 8-bit PNG
+        data = rgb16.pngsave_buffer(bitdepth=8)
+        rgb = pyvips.Image.pngload_buffer(data)
+        assert rgb.format == "uchar"
 
     @skip_if_no("tiffload")
     def test_tiff(self):
@@ -496,6 +531,10 @@ class TestForeign:
 
         self.file_loader("tiffload", TIF_FILE, tiff_valid)
         self.buffer_loader("tiffload_buffer", TIF_FILE, tiff_valid)
+
+        for image in self.all:
+            target = pyvips.Target.new_to_memory()
+            image.tiffsave_target(target)
 
         def tiff1_valid(im):
             a = im(127, 0)
@@ -532,28 +571,6 @@ class TestForeign:
             assert im.get("bits-per-sample") == 4
 
         self.file_loader("tiffload", TIF4_FILE, tiff4_valid)
-
-        def tiff_ojpeg_tile_valid(im):
-            a = im(10, 10)
-            assert_almost_equal_objects(a, [135.0, 156.0, 177.0, 255.0])
-            assert im.width == 234
-            assert im.height == 213
-            assert im.bands == 4
-            assert im.get("bits-per-sample") == 8
-
-        self.file_loader("tiffload", TIF_OJPEG_TILE_FILE, tiff_ojpeg_tile_valid)
-        self.buffer_loader("tiffload_buffer", TIF_OJPEG_TILE_FILE, tiff_ojpeg_tile_valid)
-
-        def tiff_ojpeg_strip_valid(im):
-            a = im(10, 10)
-            assert_almost_equal_objects(a, [228.0, 15.0, 9.0, 255.0])
-            assert im.width == 160
-            assert im.height == 160
-            assert im.bands == 4
-            assert im.get("bits-per-sample") == 8
-
-        self.file_loader("tiffload", TIF_OJPEG_STRIP_FILE, tiff_ojpeg_strip_valid)
-        self.buffer_loader("tiffload_buffer", TIF_OJPEG_STRIP_FILE, tiff_ojpeg_strip_valid)
 
         def tiff_subsampled_valid(im):
             a = im(10, 10)
@@ -734,6 +751,31 @@ class TestForeign:
             z = y.hist_find(band=0)
             assert z(0, 0)[0] + z(255, 0)[0] == y.width * y.height
 
+    @skip_if_no("tiffload")
+    @pytest.mark.xfail(raises=AssertionError, reason="fails when libtiff was configured with --disable-old-jpeg")
+    def test_tiff_ojpeg(self):
+        def tiff_ojpeg_tile_valid(im):
+            a = im(10, 10)
+            assert_almost_equal_objects(a, [135.0, 156.0, 177.0, 255.0])
+            assert im.width == 234
+            assert im.height == 213
+            assert im.bands == 4
+            assert im.get("bits-per-sample") == 8
+
+        self.file_loader("tiffload", TIF_OJPEG_TILE_FILE, tiff_ojpeg_tile_valid)
+        self.buffer_loader("tiffload_buffer", TIF_OJPEG_TILE_FILE, tiff_ojpeg_tile_valid)
+
+        def tiff_ojpeg_strip_valid(im):
+            a = im(10, 10)
+            assert_almost_equal_objects(a, [228.0, 15.0, 9.0, 255.0])
+            assert im.width == 160
+            assert im.height == 160
+            assert im.bands == 4
+            assert im.get("bits-per-sample") == 8
+
+        self.file_loader("tiffload", TIF_OJPEG_STRIP_FILE, tiff_ojpeg_strip_valid)
+        self.buffer_loader("tiffload_buffer", TIF_OJPEG_STRIP_FILE, tiff_ojpeg_strip_valid)
+
     @skip_if_no("jp2kload")
     @skip_if_no("tiffload")
     def test_tiffjp2k(self):
@@ -780,16 +822,14 @@ class TestForeign:
         assert im.height == height * 5
 
         # page/n let you pick a range of pages
-        # 'n' param added in 8.5
-        if pyvips.at_least_libvips(8, 5):
-            im = pyvips.Image.magickload(GIF_ANIM_FILE)
-            width = im.width
-            height = im.height
-            im = pyvips.Image.magickload(GIF_ANIM_FILE, page=1, n=2)
-            assert im.width == width
-            assert im.height == height * 2
-            page_height = im.get("page-height")
-            assert page_height == height
+        im = pyvips.Image.magickload(GIF_ANIM_FILE)
+        width = im.width
+        height = im.height
+        im = pyvips.Image.magickload(GIF_ANIM_FILE, page=1, n=2)
+        assert im.width == width
+        assert im.height == height * 2
+        page_height = im.get("page-height")
+        assert page_height == height
 
         # should work for dicom
         im = pyvips.Image.magickload(DICOM_FILE)
@@ -1012,6 +1052,7 @@ class TestForeign:
 
     @skip_if_no("openslideload")
     def test_openslideload(self):
+
         def openslide_valid(im):
             a = im(10, 10)
             assert_almost_equal_objects(a, [244, 250, 243, 255])
@@ -1067,7 +1108,9 @@ class TestForeign:
         assert x2.get("bits-per-sample") == 4
         assert x2.get("palette") == 1
 
-        x2 = pyvips.Image.new_from_file(GIF_ANIM_FILE, n=-1)
+        x2 = pyvips.Image.new_from_file(GIF_ANIM_FILE,
+                                        n=-1,
+                                        access="sequential")
         # our test gif has delay 0 for the first frame set in error
         assert x2.get("delay") == [0, 50, 50, 50, 50]
         assert x2.get("loop") == 32761
@@ -1198,11 +1241,21 @@ class TestForeign:
         assert im.width == 10
         assert im.height == 10
 
+        # Custom CSS stylesheet
+        im = pyvips.Image.new_from_file(SVG_FILE)
+        assert im.avg() < 5
+        im = pyvips.Image.new_from_file(SVG_FILE, stylesheet=b'path{stroke:#f00;stroke-width:1em;}')
+        assert im.avg() > 5
+
     def test_csv(self):
         self.save_load("%s.csv", self.mono)
 
     def test_matrix(self):
         self.save_load("%s.mat", self.mono)
+
+        for image in self.all:
+            target = pyvips.Target.new_to_memory()
+            image.matrixsave_target(target)
 
     @skip_if_no("ppmload")
     def test_ppm(self):
@@ -1221,8 +1274,7 @@ class TestForeign:
         self.save_load_file("%s.ppm", "[ascii]", grey16, 0)
         self.save_load_file("%s.ppm", "[ascii]", rgb16, 0)
 
-        source = pyvips.Source.new_from_memory(b'P1\n#\n#\n1 1\n0\n')
-        im = pyvips.Image.ppmload_source(source)
+        im = pyvips.Image.new_from_buffer(b'P1\n#\n#\n1 1\n0\n', "")
         assert im.height == 1
         assert im.width == 1
 
@@ -1412,7 +1464,7 @@ class TestForeign:
         # test keep=pyvips.ForeignKeep.ICC ... icc profiles should be
         # passed down
         filename = temp_filename(self.tempdir, '')
-        self.colour.dzsave(filename, keep=1 << 3) # pyvips.ForeignKeep.ICC
+        self.colour.dzsave(filename, keep=pyvips.ForeignKeep.ICC)
 
         y = pyvips.Image.new_from_file(filename + "_files/0/0_0.jpeg")
         assert y.get_typeof("icc-profile-data") != 0
@@ -1490,6 +1542,7 @@ class TestForeign:
             assert y.get("exif-ifd0-XPComment").startswith("banana")
 
     @skip_if_no("heifsave")
+    @pytest.mark.xfail(raises=pyvips.error.Error, reason="requires libheif built with patent-encumbered HEVC dependencies")
     def test_heicsave_16_to_12(self):
         rgb16 = self.colour.colourspace("rgb16")
         data = rgb16.heifsave_buffer(lossless=True)
@@ -1503,6 +1556,7 @@ class TestForeign:
         assert((im - rgb16).abs().max() < 4500)
 
     @skip_if_no("heifsave")
+    @pytest.mark.xfail(raises=pyvips.error.Error, reason="requires libheif built with patent-encumbered HEVC dependencies")
     def test_heicsave_16_to_8(self):
         rgb16 = self.colour.colourspace("rgb16")
         data = rgb16.heifsave_buffer(lossless=True, bitdepth=8)
@@ -1516,6 +1570,7 @@ class TestForeign:
         assert((im - rgb16 / 256).abs().max() < 80)
 
     @skip_if_no("heifsave")
+    @pytest.mark.xfail(raises=pyvips.error.Error, reason="requires libheif built with patent-encumbered HEVC dependencies")
     def test_heicsave_8_to_16(self):
         data = self.colour.heifsave_buffer(lossless=True, bitdepth=12)
         im = pyvips.Image.heifload_buffer(data)
@@ -1643,6 +1698,7 @@ class TestForeign:
         lossless = self.colour.jxlsave_buffer(lossless=True)
         assert len(lossy) < len(lossless) / 5
 
+    @skip_if_no("gifload")
     @skip_if_no("gifsave")
     def test_gifsave(self):
         # Animated GIF round trip

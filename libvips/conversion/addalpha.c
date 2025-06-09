@@ -102,11 +102,12 @@ vips_addalpha_init(VipsAddAlpha *addalpha)
  * vips_addalpha: (method)
  * @in: input image
  * @out: (out): output image
- * @...: %NULL-terminated list of optional named arguments
+ * @...: `NULL`-terminated list of optional named arguments
  *
  * Append an alpha channel.
  *
- * See also: vips_image_hasalpha().
+ * ::: seealso
+ *     [method@Image.hasalpha].
  *
  * Returns: 0 on success, -1 on error
  */

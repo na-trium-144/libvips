@@ -200,7 +200,6 @@ vips_foreign_save_heif_write_metadata(VipsForeignSaveHeif *heif)
 	return 0;
 }
 
-#ifdef HAVE_HEIF_COLOR_PROFILE
 static int
 vips_foreign_save_heif_add_icc(VipsForeignSaveHeif *heif,
 	const void *profile, size_t length)
@@ -261,7 +260,6 @@ vips_foreign_save_heif_add_orig_icc(VipsForeignSaveHeif *heif)
 
 	return 0;
 }
-#endif /*HAVE_HEIF_COLOR_PROFILE*/
 
 static int
 vips_foreign_save_heif_write_page(VipsForeignSaveHeif *heif, int page)
@@ -274,7 +272,6 @@ vips_foreign_save_heif_write_page(VipsForeignSaveHeif *heif, int page)
 	struct heif_color_profile_nclx *nclx = NULL;
 #endif
 
-#ifdef HAVE_HEIF_COLOR_PROFILE
 	/* A profile supplied as an argument overrides an embedded
 	 * profile.
 	 */
@@ -286,11 +283,9 @@ vips_foreign_save_heif_write_page(VipsForeignSaveHeif *heif, int page)
 		if (vips_foreign_save_heif_add_orig_icc(heif))
 			return -1;
 	}
-#endif /*HAVE_HEIF_COLOR_PROFILE*/
 
 	options = heif_encoding_options_alloc();
-	if (vips_image_hasalpha(save->ready))
-		options->save_alpha_channel = 1;
+	options->save_alpha_channel = save->ready->Bands > 3;
 
 #ifdef HAVE_HEIF_ENCODING_OPTIONS_OUTPUT_NCLX_PROFILE
 	/* Matrix coefficients have to be identity (CICP x/y/0) in lossless
@@ -410,7 +405,7 @@ vips_foreign_save_heif_pack(VipsForeignSaveHeif *heif,
 		for (i = 0; i < ne; i++) {
 			guint16 v = *((gushort *) p) >> shift;
 
-			q[i] = v;
+			q[i] = VIPS_MIN(v, UCHAR_MAX);
 
 			p += 2;
 		}
@@ -466,7 +461,7 @@ vips_foreign_save_heif_write_block(VipsRegion *region, VipsRect *area,
 		int page = (area->top + y) / heif->page_height;
 		int line = (area->top + y) % heif->page_height;
 		VipsPel *p = VIPS_REGION_ADDR(region, 0, area->top + y);
-		VipsPel *q = heif->data + line * heif->stride;
+		VipsPel *q = heif->data + (size_t) heif->stride * line;
 
 		if (vips_foreign_save_heif_pack(heif,
 				q, p, VIPS_REGION_N_ELEMENTS(region)))
@@ -516,7 +511,10 @@ vips_foreign_save_heif_build(VipsObject *object)
 	struct heif_writer writer;
 	char *chroma;
 	const struct heif_encoder_descriptor *out_encoder;
+#ifdef HAVE_HEIF_ENCODER_PARAMETER_GET_VALID_INTEGER_VALUES
 	const struct heif_encoder_parameter *const *param;
+#endif
+	gboolean has_alpha;
 
 	if (VIPS_OBJECT_CLASS(vips_foreign_save_heif_parent_class)-> build(object))
 		return -1;
@@ -677,6 +675,7 @@ vips_foreign_save_heif_build(VipsObject *object)
 	heif->page_width = save->ready->Xsize;
 	heif->page_height = vips_image_get_page_height(save->ready);
 	heif->n_pages = save->ready->Ysize / heif->page_height;
+	has_alpha = save->ready->Bands > 3;
 
 	if (heif->page_width > 16384 || heif->page_height > 16384) {
 		vips_error("heifsave", _("image too large"));
@@ -690,12 +689,11 @@ vips_foreign_save_heif_build(VipsObject *object)
 	printf("vips_foreign_save_heif_build:\n");
 	printf("\twidth = %d\n", heif->page_width);
 	printf("\theight = %d\n", heif->page_height);
-	printf("\talpha = %d\n", vips_image_hasalpha(save->ready));
+	printf("\talpha = %d\n", has_alpha);
 #endif /*DEBUG*/
 	error = heif_image_create(heif->page_width, heif->page_height,
 		heif_colorspace_RGB,
-		vips__heif_chroma(heif->bitdepth,
-			vips_image_hasalpha(save->ready)),
+		vips__heif_chroma(heif->bitdepth, has_alpha),
 		&heif->img);
 	if (error.code) {
 		vips__heif_error(&error);
@@ -767,7 +765,8 @@ vips_foreign_save_heif_class_init(VipsForeignSaveHeifClass *class)
 	object_class->description = _("save image in HEIF format");
 	object_class->build = vips_foreign_save_heif_build;
 
-	save_class->saveable = VIPS_SAVEABLE_RGBA_ONLY;
+	save_class->saveable =
+		VIPS_FOREIGN_SAVEABLE_RGB | VIPS_FOREIGN_SAVEABLE_ALPHA;
 	save_class->format_table = vips_heif_bandfmt;
 
 	VIPS_ARG_INT(class, "Q", 10,
@@ -871,11 +870,8 @@ vips_foreign_save_heif_file_build(VipsObject *object)
 	if (vips_iscasepostfix(file->filename, ".avif"))
 		heif->compression = VIPS_FOREIGN_HEIF_COMPRESSION_AV1;
 
-	if (VIPS_OBJECT_CLASS(vips_foreign_save_heif_file_parent_class)
-			->build(object))
-		return -1;
-
-	return 0;
+	return VIPS_OBJECT_CLASS(vips_foreign_save_heif_file_parent_class)
+		->build(object);
 }
 
 static void
@@ -993,11 +989,8 @@ vips_foreign_save_heif_target_build(VipsObject *object)
 		g_object_ref(heif->target);
 	}
 
-	if (VIPS_OBJECT_CLASS(vips_foreign_save_heif_target_parent_class)
-			->build(object))
-		return -1;
-
-	return 0;
+	return VIPS_OBJECT_CLASS(vips_foreign_save_heif_target_parent_class)
+		->build(object);
 }
 
 static void

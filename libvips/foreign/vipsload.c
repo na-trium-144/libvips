@@ -198,11 +198,8 @@ vips_foreign_load_vips_file_build(VipsObject *object)
 		!(vips->source = vips_source_new_from_file(file->filename)))
 		return -1;
 
-	if (VIPS_OBJECT_CLASS(vips_foreign_load_vips_file_parent_class)
-			->build(object))
-		return -1;
-
-	return 0;
+	return VIPS_OBJECT_CLASS(vips_foreign_load_vips_file_parent_class)
+		->build(object);
 }
 
 const char *vips__suffs[] = { ".v", ".vips", NULL };
@@ -269,11 +266,8 @@ vips_foreign_load_vips_source_build(VipsObject *object)
 		g_object_ref(vips->source);
 	}
 
-	if (VIPS_OBJECT_CLASS(vips_foreign_load_vips_source_parent_class)
-			->build(object))
-		return -1;
-
-	return 0;
+	return VIPS_OBJECT_CLASS(vips_foreign_load_vips_source_parent_class)
+		->build(object);
 }
 
 static gboolean
@@ -325,11 +319,12 @@ vips_foreign_load_vips_source_init(VipsForeignLoadVipsSource *source)
  * vips_vipsload:
  * @filename: file to load
  * @out: (out): decompressed image
- * @...: %NULL-terminated list of optional named arguments
+ * @...: `NULL`-terminated list of optional named arguments
  *
  * Read in a vips image.
  *
- * See also: vips_vipssave().
+ * ::: seealso
+ *     [method@Image.vipssave].
  *
  * Returns: 0 on success, -1 on error.
  */
@@ -350,9 +345,9 @@ vips_vipsload(const char *filename, VipsImage **out, ...)
  * vips_vipsload_source:
  * @source: source to load from
  * @out: (out): decompressed image
- * @...: %NULL-terminated list of optional named arguments
+ * @...: `NULL`-terminated list of optional named arguments
  *
- * Exactly as vips_vipsload(), but read from a source.
+ * Exactly as [ctor@Image.vipsload], but read from a source.
  *
  * Returns: 0 on success, -1 on error.
  */

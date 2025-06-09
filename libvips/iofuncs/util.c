@@ -68,7 +68,14 @@
 
 #define MODE_READ CLOEXEC(BINARYIZE(O_RDONLY))
 
-/* Test two lists for eqality.
+/**
+ * vips_slist_equal:
+ * @l1: (element-type guint8): a [struct@GLib.SList]
+ * @l2: (element-type guint8): another [struct@GLib.SList]
+ *
+ * Test two lists for equality.
+ *
+ * Returns: `TRUE` if @l1 is equal to @l2. `FALSE` otherwise.
  */
 gboolean
 vips_slist_equal(GSList *l1, GSList *l2)
@@ -87,7 +94,17 @@ vips_slist_equal(GSList *l1, GSList *l2)
 	return TRUE;
 }
 
-/* Map over an slist. _copy() the list in case the callback changes it.
+/**
+ * vips_slist_map2:
+ * @list: (element-type guint8): a [struct@GLib.SList]
+ * @fn: (scope call): function to apply to each list element
+ * @a: user data
+ * @b: user data
+ *
+ * Map over a slist. _copy() the list in case the callback changes it.
+ *
+ * Returns: `NULL` if @fn returns `NULL` for all arguments, otherwise the first
+ * non-`NULL` value from @fn.
  */
 void *
 vips_slist_map2(GSList *list, VipsSListMap2Fn fn, void *a, void *b)
@@ -105,7 +122,17 @@ vips_slist_map2(GSList *list, VipsSListMap2Fn fn, void *a, void *b)
 	return result;
 }
 
-/* Map backwards. We _reverse() rather than recurse and unwind to save stack.
+/**
+ * vips_slist_map2_rev:
+ * @list: (element-type guint8): a [struct@GLib.SList]
+ * @fn: (scope call): function to apply to each list element
+ * @a: user data
+ * @b: user data
+ *
+ * Map backwards. We _reverse() rather than recurse and unwind to save stack.
+ *
+ * Returns: `NULL` if @fn returns `NULL` for all arguments, otherwise the first
+ * non-`NULL` value from @fn.
  */
 void *
 vips_slist_map2_rev(GSList *list, VipsSListMap2Fn fn, void *a, void *b)
@@ -124,6 +151,20 @@ vips_slist_map2_rev(GSList *list, VipsSListMap2Fn fn, void *a, void *b)
 	return result;
 }
 
+/**
+ * vips_slist_map4:
+ * @list: (element-type guint8): a [struct@GLib.SList]
+ * @fn: (scope call): function to apply to each list element
+ * @a: user data
+ * @b: user data
+ * @c: user data
+ * @d: user data
+ *
+ * Map over a slist. _copy() the list in case the callback changes it.
+ *
+ * Returns: `NULL` if @fn returns `NULL` for all arguments, otherwise the first
+ * non-`NULL` value from @fn.
+ */
 void *
 vips_slist_map4(GSList *list,
 	VipsSListMap4Fn fn, void *a, void *b, void *c, void *d)
@@ -142,6 +183,19 @@ vips_slist_map4(GSList *list,
 	return result;
 }
 
+/**
+ * vips_slist_fold2:
+ * @list: (element-type guint8): a [struct@GLib.SList]
+ * @start: initial value for the accumulator
+ * @fn: (scope call): function to apply to each list element
+ * @a: user data
+ * @b: user data
+ *
+ * Fold over a slist, applying @fn to each element.
+ *
+ * Returns: `NULL` if @fn returns `NULL` for all arguments, otherwise the first
+ * non-`NULL` value from @fn.
+ */
 void *
 vips_slist_fold2(GSList *list, void *start,
 	VipsSListFold2Fn fn, void *a, void *b)
@@ -159,7 +213,17 @@ vips_slist_fold2(GSList *list, void *start,
 	return c;
 }
 
-/* Remove all occurrences of an item from a list.
+/**
+ * vips_slist_filter:
+ * @list: (element-type guint8): a [struct@GLib.SList]
+ * @fn: (scope call): function to call for each element.
+ * @a: user data
+ * @b: user data
+ *
+ * Remove all occurrences of an item from a list.
+ * Returns the new head of the list.
+ *
+ * Returns: (element-type guint8) (transfer full): new head of @list
  */
 GSList *
 vips_slist_filter(GSList *list, VipsSListMap2Fn fn, void *a, void *b)
@@ -198,7 +262,11 @@ vips_slist_free_all_cb(void *thing, void *dummy)
 	g_free(thing);
 }
 
-/* Free a g_slist of things which need g_free()ing.
+/**
+ * vips_slist_free_all:
+ * @list: (element-type guint8): a [struct@GLib.SList]
+ *
+ * Free a [struct@GLib.SList] of things which need [func@GLib.free]ing.
  */
 void
 vips_slist_free_all(GSList *list)
@@ -229,7 +297,17 @@ vips_hash_table_predicate(const char *key, void *value, Pair *pair)
 	return (pair->result = pair->fn(value, pair->a, pair->b)) != NULL;
 }
 
-/* Like slist map, but for a hash table.
+/**
+ * vips_hash_table_map:
+ * @hash: a [struct@GLib.HashTable]
+ * @fn: (scope call): function to apply to each hash value
+ * @a: user data
+ * @b: user data
+ *
+ * Like slist map, but for a hash table.
+ *
+ * Returns: `NULL` if @fn returns `NULL` for all arguments, otherwise the first
+ * non-`NULL` value from @fn.
  */
 void *
 vips_hash_table_map(GHashTable *hash, VipsSListMap2Fn fn, void *a, void *b)
@@ -666,25 +744,22 @@ vips__file_read(FILE *fp, const char *filename, size_t *length_out)
 	if (len == -1) {
 		int size;
 
-		/* Can't get length: read in chunks and realloc() to end of
+		/* Can't get length: read in chunks and g_realloc() to end of
 		 * file.
 		 */
 		str = NULL;
 		len = 0;
 		size = 0;
 		do {
-			char *str2;
-
 			/* Again, a 1gb sanity limit.
 			 */
 			size += 1024;
-			if (size > 1024 * 1024 * 1024 ||
-				!(str2 = realloc(str, size))) {
-				free(str);
+			if (size > 1024 * 1024 * 1024) {
+				g_free(str);
 				vips_error("vips__file_read", "%s", _("out of memory"));
 				return NULL;
 			}
-			str = str2;
+			str = g_realloc(str, size);
 
 			/* -1 to allow space for an extra NULL we add later.
 			 */
@@ -850,7 +925,11 @@ vips__gvalue_ref_string_new(const char *text)
 	return value;
 }
 
-/* Free a GSList of GValue.
+/**
+ * vips__gslist_gvalue_free:
+ * @list: (element-type GValue): a [struct@GLib.SList] of GValue
+ *
+ * Free a GSList of GValue.
  */
 void
 vips__gslist_gvalue_free(GSList *list)
@@ -859,7 +938,13 @@ vips__gslist_gvalue_free(GSList *list)
 	g_slist_free(list);
 }
 
-/* Copy a GSList of GValue.
+/**
+ * vips__gslist_gvalue_copy:
+ * @list: (element-type GValue): a [struct@GLib.SList] of GValue
+ *
+ * Copy a GSList of GValue.
+ *
+ * Returns: (element-type GValue) (transfer full): a copy of @list
  */
 GSList *
 vips__gslist_gvalue_copy(const GSList *list)
@@ -870,17 +955,22 @@ vips__gslist_gvalue_copy(const GSList *list)
 	copy = NULL;
 
 	for (p = list; p; p = p->next)
-		copy = g_slist_prepend(copy,
-			vips__gvalue_copy((GValue *) p->data));
+		copy = g_slist_prepend(copy, vips__gvalue_copy((GValue *) p->data));
 
 	copy = g_slist_reverse(copy);
 
 	return copy;
 }
 
-/* Merge two GSList of GValue ... append to a all elements in b which are not
- * in a. Return the new value of a. Works for any vips refcounted type
- * (string, blob, etc.).
+/**
+ * vips__gslist_gvalue_merge:
+ * @a: (element-type GValue): a [struct@GLib.SList] of GValue
+ * @b: (element-type GValue): a [struct@GLib.SList] of GValue
+ *
+ * Merge two GSList of GValue ... append to a all elements in b which are not
+ * in a. Works for any vips refcounted type (string, blob, etc.).
+ *
+ * Returns: (element-type GValue) (transfer full): the new value of @a
  */
 GSList *
 vips__gslist_gvalue_merge(GSList *a, const GSList *b)
@@ -898,8 +988,7 @@ vips__gslist_gvalue_merge(GSList *a, const GSList *b)
 		for (j = a; j; j = j->next) {
 			GValue *value2 = (GValue *) j->data;
 
-			g_assert(G_VALUE_TYPE(value2) ==
-				VIPS_TYPE_REF_STRING);
+			g_assert(G_VALUE_TYPE(value2) == VIPS_TYPE_REF_STRING);
 
 			/* Just do a pointer compare ... good enough 99.9% of
 			 * the time.
@@ -910,8 +999,7 @@ vips__gslist_gvalue_merge(GSList *a, const GSList *b)
 		}
 
 		if (!j)
-			tail = g_slist_prepend(tail,
-				vips__gvalue_copy(value));
+			tail = g_slist_prepend(tail, vips__gvalue_copy(value));
 	}
 
 	a = g_slist_concat(a, g_slist_reverse(tail));
@@ -919,8 +1007,16 @@ vips__gslist_gvalue_merge(GSList *a, const GSList *b)
 	return a;
 }
 
-/* Make a char * from GSList of GValue. Each GValue should be a ref_string.
- * free the result. Empty list -> "", not NULL. Join strings with '\n'.
+/**
+ * vips__gslist_gvalue_get:
+ * @list: (element-type GValue): a [struct@GLib.SList] of GValue
+ *
+ * Make a char * from GSList of GValue. Each GValue should be a ref_string.
+ *
+ * If @list is empty, the return value will be `NULL`.
+ *
+ * Returns: (transfer full) (nullable): a newly-allocated string containing
+ *   all of the list elements joined together, with '\n' between them.
  */
 char *
 vips__gslist_gvalue_get(const GSList *list)
@@ -999,8 +1095,7 @@ vips__seek(int fd, gint64 pos, int whence)
 	gint64 new_pos;
 
 	if ((new_pos = vips__seek_no_error(fd, pos, whence)) == -1) {
-		vips_error_system(errno, "vips__seek",
-			"%s", _("unable to seek"));
+		vips_error_system(errno, "vips__seek", "%s", _("unable to seek"));
 		return -1;
 	}
 
@@ -1263,8 +1358,7 @@ vips__token_must(const char *p, VipsToken *token,
 	char *string, int size)
 {
 	if (!(p = vips__token_get(p, token, string, size))) {
-		vips_error("get_token",
-			"%s", _("unexpected end of string"));
+		vips_error("get_token", "%s", _("unexpected end of string"));
 		return NULL;
 	}
 
@@ -1531,8 +1625,7 @@ vips__temp_name(const char *format)
 
 	int serial = g_atomic_int_add(&global_serial, 1);
 
-	g_snprintf(file, FILENAME_MAX, "vips-%d-%u",
-		serial, g_random_int());
+	g_snprintf(file, FILENAME_MAX, "vips-%d-%u", serial, g_random_int());
 	g_snprintf(file2, FILENAME_MAX, format, file);
 	name = g_build_filename(vips__temp_dir(), file2, NULL);
 
@@ -1610,6 +1703,7 @@ vips__parse_size(const char *size_string)
 	 */
 	unit = g_strdup(size_string);
 
+	size = 0;
 	n = sscanf(size_string, "%" G_GUINT64_FORMAT " %s", &size, unit);
 	if (n > 1)
 		for (int j = 0; j < VIPS_NUMBER(units); j++)
@@ -1857,8 +1951,7 @@ vips_icc_dir_once(void *null)
 		 */
 		char *windowsdir;
 
-		if ((windowsdir = g_utf16_to_utf8(wwindowsdir,
-				 -1, NULL, NULL, NULL))) {
+		if ((windowsdir = g_utf16_to_utf8(wwindowsdir, -1, NULL, NULL, NULL))) {
 			gchar *full_path;
 
 			full_path = g_build_filename(windowsdir,
@@ -1878,8 +1971,7 @@ vips__icc_dir(void)
 {
 	static GOnce once = G_ONCE_INIT;
 
-	return (const char *) g_once(&once,
-		vips_icc_dir_once, NULL);
+	return (const char *) g_once(&once, vips_icc_dir_once, NULL);
 }
 
 #ifdef G_OS_WIN32
@@ -1902,8 +1994,7 @@ vips__windows_prefix_once(void *null)
 	char *prefix;
 
 #ifdef G_OS_WIN32
-	prefix = g_win32_get_package_installation_directory_of_module(
-		vips__dll);
+	prefix = g_win32_get_package_installation_directory_of_module(vips__dll);
 #else  /*!G_OS_WIN32*/
 	prefix = (char *) g_getenv("VIPSHOME");
 #endif /*G_OS_WIN32*/
@@ -1916,8 +2007,7 @@ vips__windows_prefix(void)
 {
 	static GOnce once = G_ONCE_INIT;
 
-	return (const char *) g_once(&once,
-		vips__windows_prefix_once, NULL);
+	return (const char *) g_once(&once, vips__windows_prefix_once, NULL);
 }
 
 char *

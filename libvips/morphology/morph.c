@@ -94,6 +94,7 @@ typedef struct {
 	int r;	/* Set previous result in this var */
 	int d1; /* The destination var */
 
+	int n_const;
 	int n_scanline;
 
 	/* The associated line corresponding to the scanline.
@@ -113,7 +114,8 @@ typedef struct {
  *
  * More like hit-miss, really.
  *
- * See also: vips_morph().
+ * ::: seealso
+ *     [method@Image.morph].
  */
 
 typedef struct {
@@ -426,6 +428,7 @@ vips_morph_compile_section(VipsMorph *morph, Pass *pass, gboolean first_pass)
 
 	CONST("zero", 0, 1);
 	CONST("one", 255, 1);
+	pass->n_const += 2;
 
 	/* Init the sum. If this is the first pass, it's a constant. If this
 	 * is a later pass, we have to init the sum from the result
@@ -465,8 +468,10 @@ vips_morph_compile_section(VipsMorph *morph, Pass *pass, gboolean first_pass)
 		 */
 		if (x > 0) {
 			g_snprintf(offset, 256, "c%db", x);
-			if (orc_program_find_var_by_name(p, offset) == -1)
+			if (orc_program_find_var_by_name(p, offset) == -1) {
 				CONST(offset, morphology->in->Bands * x, 1);
+				pass->n_const++;
+			}
 			ASM3("loadoffb", "value", source, offset);
 		}
 		else
@@ -493,6 +498,12 @@ vips_morph_compile_section(VipsMorph *morph, Pass *pass, gboolean first_pass)
 				ASM3("andb", "sum", "sum", "value");
 		}
 
+		/* orc allows up to 8 constants, so break early once we
+		 * approach this limit.
+		 */
+		if (pass->n_const >= 7 /*ORC_MAX_CONST_VARS - 1*/)
+			break;
+
 		/* You can have 8 sources, and pass->r counts as one of them,
 		 * so +1 there.
 		 */
@@ -506,9 +517,9 @@ vips_morph_compile_section(VipsMorph *morph, Pass *pass, gboolean first_pass)
 
 	/* Some orcs seem to be unstable with many compilers active at once.
 	 */
-	g_mutex_lock(vips__global_lock);
+	g_mutex_lock(&vips__global_lock);
 	result = orc_program_compile(p);
-	g_mutex_unlock(vips__global_lock);
+	g_mutex_unlock(&vips__global_lock);
 
 	if (!ORC_COMPILE_RESULT_IS_SUCCESSFUL(result))
 		return -1;
@@ -553,6 +564,7 @@ vips_morph_compile(VipsMorph *morph)
 		pass->first = i;
 		pass->last = i;
 		pass->r = -1;
+		pass->n_const = 0;
 		pass->n_scanline = 0;
 
 		if (vips_morph_compile_section(morph, pass, morph->n_pass == 1))
@@ -909,7 +921,7 @@ vips_morph_build(VipsObject *object)
 			VIPS_DEMAND_STYLE_SMALLTILE, in, NULL))
 		return -1;
 
-	/* Prepare output. Consider a 7x7 mask and a 7x7 image --- the output
+	/* Prepare output. Consider a 7x7 mask and a 7x7 image -- the output
 	 * would be 1x1.
 	 */
 	morph->out->Xsize -= M->Xsize - 1;
@@ -978,7 +990,7 @@ vips_morph_init(VipsMorph *morph)
  * @out: (out): output image
  * @mask: morphology with this mask
  * @morph: operation to perform
- * @...: %NULL-terminated list of optional named arguments
+ * @...: `NULL`-terminated list of optional named arguments
  *
  * Performs a morphological operation on @in using @mask as a
  * structuring element.
@@ -996,21 +1008,21 @@ vips_morph_init(VipsMorph *morph)
  * based on the book "Fundamentals of Digital Image Processing" by A. Jain,
  * pp 384-388, Prentice-Hall, 1989.
  *
- * For #VIPS_OPERATION_MORPHOLOGY_ERODE,
+ * For [enum@Vips.OperationMorphology.ERODE],
  * the whole mask must match for the output pixel to be
  * set, that is, the result is the logical AND of the selected input pixels.
  *
- * For #VIPS_OPERATION_MORPHOLOGY_DILATE,
+ * For [enum@Vips.OperationMorphology.DILATE],
  * the output pixel is set if any part of the mask
  * matches, that is, the result is the logical OR of the selected input pixels.
  *
- * See the boolean operations vips_andimage(), vips_orimage() and
- * vips_eorimage()
+ * See the boolean operations [method@Image.andimage], [method@Image.orimage]
+ * and [method@Image.eorimage]
  * for analogues of the usual set difference and set union operations.
  *
  * Operations are performed using the processor's vector unit,
  * if possible. Disable this with `--vips-novector` or `VIPS_NOVECTOR` or
- * vips_vector_set_enabled()
+ * [func@vector_set_enabled].
  *
  * Returns: 0 on success, -1 on error
  */

@@ -70,7 +70,7 @@ G_DEFINE_TYPE(VipsMinpair, vips_minpair, VIPS_TYPE_BINARY);
 		TYPE *restrict q = (TYPE *) out; \
 \
 		for (int x = 0; x < sz; x++) \
-			q[x] = VIPS_FMIN(left[x], right[x]); \
+			q[x] = fmin(left[x], right[x]); \
 	}
 
 static void
@@ -161,15 +161,16 @@ vips_minpair_init(VipsMinpair *minpair)
 }
 
 /**
- * vips_minpair:
+ * vips_minpair: (method)
  * @left: input image
  * @right: input image
  * @out: (out): output image
- * @...: %NULL-terminated list of optional named arguments
+ * @...: `NULL`-terminated list of optional named arguments
  *
  * For each pixel, pick the minimum of a pair of images.
  *
- * See also: vips_minpair().
+ * ::: seealso
+ *     [method@Image.minpair].
  *
  * Returns: 0 on success, -1 on error
  */

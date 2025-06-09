@@ -196,21 +196,17 @@ vips_foreign_load_jxl_build(VipsObject *object)
 	printf("vips_foreign_load_jxl_build:\n");
 #endif /*DEBUG*/
 
-	jxl->runner = JxlThreadParallelRunnerCreate(NULL,
-		vips_concurrency_get());
+	jxl->runner = JxlThreadParallelRunnerCreate(NULL, vips_concurrency_get());
 	jxl->decoder = JxlDecoderCreate(NULL);
 
 	if (JxlDecoderSetParallelRunner(jxl->decoder,
 			JxlThreadParallelRunner, jxl->runner)) {
-		vips_foreign_load_jxl_error(jxl,
-			"JxlDecoderSetParallelRunner");
+		vips_foreign_load_jxl_error(jxl, "JxlDecoderSetParallelRunner");
 		return -1;
 	}
 
-	if (VIPS_OBJECT_CLASS(vips_foreign_load_jxl_parent_class)->build(object))
-		return -1;
-
-	return 0;
+	return VIPS_OBJECT_CLASS(vips_foreign_load_jxl_parent_class)
+		->build(object);
 }
 
 static gboolean
@@ -636,14 +632,12 @@ vips_foreign_load_jxl_generate(VipsRegion *out_region,
 static int
 vips_foreign_load_jxl_fix_exif(VipsForeignLoadJxl *jxl)
 {
-	VipsObjectClass *class = VIPS_OBJECT_GET_CLASS(jxl);
-
 	if (!jxl->exif_data ||
 		vips_isprefix("Exif", (char *) jxl->exif_data))
 		return 0;
 
 	if (jxl->exif_size < 4) {
-		g_warning("%s: invalid data in EXIF box", class->nickname);
+		g_warning("invalid data in EXIF box");
 		return -1;
 	}
 
@@ -651,7 +645,7 @@ vips_foreign_load_jxl_fix_exif(VipsForeignLoadJxl *jxl)
 	 */
 	size_t offset = GUINT32_FROM_BE(*((guint32 *) jxl->exif_data));
 	if (offset > jxl->exif_size - 4) {
-		g_warning("%s: invalid data in EXIF box", class->nickname);
+		g_warning("invalid data in EXIF box");
 		return -1;
 	}
 
@@ -745,7 +739,7 @@ vips_foreign_load_jxl_set_header(VipsForeignLoadJxl *jxl, VipsImage *out)
 
 	if (jxl->frame_count > 1) {
 		if (jxl->n == -1)
-			jxl->n = jxl->frame_count - jxl->page;
+			jxl->n = jxl->frame_count - jxl->page; // FIXME: Invalidates operation cache
 
 		if (jxl->page < 0 ||
 			jxl->n <= 0 ||
@@ -766,14 +760,14 @@ vips_foreign_load_jxl_set_header(VipsForeignLoadJxl *jxl, VipsImage *out)
 
 			/* gif uses centiseconds for delays
 			 */
-			vips_image_set_int(out, "gif-delay", VIPS_RINT(delay[0] / 10.0));
+			vips_image_set_int(out, "gif-delay", rint(delay[0] / 10.0));
 
 			vips_image_set_int(out, "loop", jxl->info.animation.num_loops);
 		}
 	}
 	else {
-		jxl->n = 1;
-		jxl->page = 0;
+		jxl->n = 1; // FIXME: Invalidates operation cache
+		jxl->page = 0; // FIXME: Invalidates operation cache
 	}
 
 	/* Init jxl->frame only when we need to decode multiple frames.
@@ -995,7 +989,7 @@ vips_foreign_load_jxl_header(VipsForeignLoad *load)
 				double tick = (double) jxl->info.animation.tps_denominator /
 					jxl->info.animation.tps_numerator;
 				// this duration in ms
-				int ms = VIPS_RINT(1000.0 * h.duration * tick);
+				int ms = rint(1000.0 * h.duration * tick);
 				// h.duration of 0xffffffff is used for multipage JXL ... map
 				// this to -1 in delay
 				int duration = h.duration == 0xffffffff ? -1 : ms;
@@ -1174,10 +1168,8 @@ vips_foreign_load_jxl_file_build(VipsObject *object)
 		!(jxl->source = vips_source_new_from_file(file->filename)))
 		return -1;
 
-	if (VIPS_OBJECT_CLASS(vips_foreign_load_jxl_file_parent_class)->build(object))
-		return -1;
-
-	return 0;
+	return VIPS_OBJECT_CLASS(vips_foreign_load_jxl_file_parent_class)
+		->build(object);
 }
 
 const char *vips__jxl_suffs[] = { ".jxl", NULL };
@@ -1254,10 +1246,8 @@ vips_foreign_load_jxl_buffer_build(VipsObject *object)
 				  VIPS_AREA(buffer->buf)->length)))
 			return -1;
 
-	if (VIPS_OBJECT_CLASS(vips_foreign_load_jxl_file_parent_class)->build(object))
-		return -1;
-
-	return 0;
+	return VIPS_OBJECT_CLASS(vips_foreign_load_jxl_buffer_parent_class)
+		->build(object);
 }
 
 static gboolean
@@ -1328,11 +1318,8 @@ vips_foreign_load_jxl_source_build(VipsObject *object)
 		g_object_ref(jxl->source);
 	}
 
-	if (VIPS_OBJECT_CLASS(vips_foreign_load_jxl_source_parent_class)
-			->build(object))
-		return -1;
-
-	return 0;
+	return VIPS_OBJECT_CLASS(vips_foreign_load_jxl_source_parent_class)
+		->build(object);
 }
 
 static void

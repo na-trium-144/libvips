@@ -14,11 +14,11 @@ jobs:
         include:
           - name: "Linux x64 (Ubuntu 24.04) - GCC 14"
             os: ubuntu-24.04
-            build: { cc: gcc-14, cxx: g++-14, linker: ld }
+            build: { cc: gcc-14, cxx: g++-14, linker: ld, docs: true }
 
-          - name: "Linux x64 (Ubuntu 24.04) - Clang 18 with ASan and UBSan"
+          - name: "Linux x64 (Ubuntu 24.04) - Clang 19 with ASan and UBSan"
             os: ubuntu-24.04
-            build: { cc: clang-18, cxx: clang++-18, linker: ld.lld-18, sanitize: true }
+            build: { cc: clang-19, cxx: clang++-19, linker: ld.lld-19, sanitize: true }
 
           - name: "macOS arm64 (14) - Xcode 15"
             os: macos-14
@@ -39,7 +39,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install \
-            meson pkg-config \
+            meson gi-docgen pkg-config \
             libarchive-dev libcfitsio-dev libcgif-dev \
             libexif-dev libexpat1-dev libffi-dev \
             libfftw3-dev libheif-dev libheif-plugin-aomenc \
@@ -54,6 +54,10 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           pip3 install meson --break-system-packages
+          # Run `brew update` to ensure we have the latest formulae.
+          # Note: GHA macOS runners set `HOMEBREW_NO_AUTO_UPDATE=1`
+          # by default, as updating can be time-consuming.
+          brew update
           brew install \
             ninja pkgconf \
             cfitsio cgif fftw fontconfig glib \
@@ -63,9 +67,9 @@ jobs:
             openexr openjpeg openslide pango \
             poppler webp
 
-      - name: Install Clang 18
-        if: runner.os == 'Linux' && matrix.build.cc == 'clang-18'
-        run: sudo apt-get install clang-18 libomp-18-dev lld-18 llvm-18
+      - name: Install Clang 19
+        if: runner.os == 'Linux' && matrix.build.cc == 'clang-19'
+        run: sudo apt-get install clang-19 libomp-19-dev lld-19 llvm-19
 
       - name: Prepare macOS environment
         if: runner.os == 'macOS'
@@ -75,7 +79,7 @@ jobs:
       - name: Prepare sanitizers
         if: matrix.build.sanitize
         env:
-          LLVM_PREFIX: /usr/lib/llvm-18
+          LLVM_PREFIX: /usr/lib/llvm-19
         run: |
           ASAN_DSO=`$CC -print-file-name=libclang_rt.asan-x86_64.so`
           echo "LDSHARED=$CC -shared" >> $GITHUB_ENV
@@ -96,6 +100,7 @@ jobs:
         run:
           meson setup build
             -Ddebug=true
+            -Ddocs=${{ matrix.build.docs && 'true' || 'false' }}
             -Ddeprecated=false
             -Dmagick=disabled
           || (cat build/meson-logs/meson-log.txt && exit 1)
@@ -104,8 +109,8 @@ jobs:
         run: meson compile -C build
 
       - name: Check libvips
-        run: |
-          meson test -C build \
+        run:
+          meson test -C build
           || (cat build/meson-logs/testlog.txt && exit 1)
 
       - name: Install libvips

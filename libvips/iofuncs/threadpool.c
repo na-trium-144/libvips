@@ -71,7 +71,6 @@
 
 #include <vips/vips.h>
 #include <vips/internal.h>
-#include <vips/thread.h>
 #include <vips/debug.h>
 
 #ifdef G_OS_WIN32
@@ -79,17 +78,15 @@
 #endif /*G_OS_WIN32*/
 
 /**
- * SECTION: threadpool
- * @short_description: pools of worker threads
- * @stability: Stable
- * @see_also: <link linkend="libvips-generate">generate</link>
- * @include: vips/vips.h
- * @title: VipsThreadpool
+ * VipsThreadState:
  *
- * vips_threadpool_run() loops a set of threads over an image. Threads take it
- * in turns to allocate units of work (a unit might be a tile in an image),
- * then run in parallel to process those units. An optional progress function
- * can be used to give feedback.
+ * A [class@ThreadState] represents a per-thread state.
+ *
+ * [callback@ThreadpoolAllocateFn] functions can use these members to
+ * communicate with [callback@ThreadpoolWorkFn] functions.
+ *
+ * ::: seealso
+ *     [func@threadpool_run].
  */
 
 /* Set to stall threads for debugging.
@@ -139,9 +136,9 @@ vips__threadpool_shutdown(void)
 
 /**
  * vips_thread_execute:
- * @name: a name for the thread
- * @func: a function to execute in the libvips threadset
- * @data: an argument to supply to @func
+ * @domain: a name for the thread (useful for debugging)
+ * @func: (scope async) (closure data): a function to execute in the libvips threadset
+ * @data: (nullable): an argument to supply to @func
  *
  * A newly created or reused thread will execute @func with the
  * argument @data.
@@ -229,7 +226,6 @@ vips_thread_state_new(VipsImage *im, void *a)
 /* What we track for each thread in the pool.
  */
 typedef struct _VipsWorker {
-	/*< private >*/
 	struct _VipsThreadpool *pool; /* Pool we are part of */
 
 	VipsThreadState *state;
@@ -241,7 +237,6 @@ typedef struct _VipsWorker {
 /* What we track for a group of threads working together.
  */
 typedef struct _VipsThreadpool {
-	/*< private >*/
 	VipsImage *im; /* Image we are calculating */
 
 	/* Start a thread, do a unit of work (runs in parallel) and allocate
@@ -251,7 +246,7 @@ typedef struct _VipsThreadpool {
 	VipsThreadStartFn start;
 	VipsThreadpoolAllocateFn allocate;
 	VipsThreadpoolWorkFn work;
-	GMutex *allocate_lock;
+	GMutex allocate_lock;
 	void *a; /* User argument to start / allocate / etc. */
 
 	int max_workers; /* Max number of workers in pool */
@@ -311,7 +306,7 @@ vips_worker_work_unit(VipsWorker *worker)
 
 	VIPS_GATE_START("vips_worker_work_unit: wait");
 
-	vips__worker_lock(pool->allocate_lock);
+	vips__worker_lock(&pool->allocate_lock);
 
 	VIPS_GATE_STOP("vips_worker_work_unit: wait");
 
@@ -319,7 +314,7 @@ vips_worker_work_unit(VipsWorker *worker)
 	 */
 	if (pool->stop) {
 		worker->stop = TRUE;
-		g_mutex_unlock(pool->allocate_lock);
+		g_mutex_unlock(&pool->allocate_lock);
 		return;
 	}
 
@@ -330,7 +325,7 @@ vips_worker_work_unit(VipsWorker *worker)
 		 * flag.
 		 */
 		worker->stop = TRUE;
-		g_mutex_unlock(pool->allocate_lock);
+		g_mutex_unlock(&pool->allocate_lock);
 		return;
 	}
 	else {
@@ -343,7 +338,7 @@ vips_worker_work_unit(VipsWorker *worker)
 	if (vips_worker_allocate(worker)) {
 		pool->error = TRUE;
 		worker->stop = TRUE;
-		g_mutex_unlock(pool->allocate_lock);
+		g_mutex_unlock(&pool->allocate_lock);
 		return;
 	}
 
@@ -351,11 +346,11 @@ vips_worker_work_unit(VipsWorker *worker)
 	 */
 	if (pool->stop) {
 		worker->stop = TRUE;
-		g_mutex_unlock(pool->allocate_lock);
+		g_mutex_unlock(&pool->allocate_lock);
 		return;
 	}
 
-	g_mutex_unlock(pool->allocate_lock);
+	g_mutex_unlock(&pool->allocate_lock);
 
 	if (worker->state->stall &&
 		vips__stall) {
@@ -407,11 +402,11 @@ vips_thread_main_loop(void *a, void *b)
 	/* unreffing the worker state will trigger stop in the threadstate, so
 	 * we need to single-thread.
 	 */
-	g_mutex_lock(pool->allocate_lock);
+	g_mutex_lock(&pool->allocate_lock);
 
 	VIPS_FREEF(g_object_unref, worker->state);
 
-	g_mutex_unlock(pool->allocate_lock);
+	g_mutex_unlock(&pool->allocate_lock);
 
 	VIPS_FREE(worker);
 	g_private_set(&worker_key, NULL);
@@ -491,7 +486,7 @@ vips_threadpool_free(VipsThreadpool *pool)
 
 	vips_threadpool_wait(pool);
 
-	VIPS_FREEF(vips_g_mutex_free, pool->allocate_lock);
+	g_mutex_clear(&pool->allocate_lock);
 	vips_semaphore_destroy(&pool->n_workers);
 	vips_semaphore_destroy(&pool->tick);
 	VIPS_FREE(pool);
@@ -513,7 +508,7 @@ vips_threadpool_new(VipsImage *im)
 	pool->im = im;
 	pool->allocate = NULL;
 	pool->work = NULL;
-	pool->allocate_lock = vips_g_mutex_new();
+	g_mutex_init(&pool->allocate_lock);
 	pool->max_workers = vips_concurrency_get();
 	vips_semaphore_init(&pool->n_workers, 0, "n_workers");
 	vips_semaphore_init(&pool->tick, 0, "tick");
@@ -551,35 +546,33 @@ vips_threadpool_new(VipsImage *im)
  *
  * This function is called once by each worker just before the first time work
  * is allocated to it to build the per-thread state. Per-thread state is used
- * by #VipsThreadpoolAllocate and #VipsThreadpoolWork to communicate.
+ * by [callback@ThreadpoolAllocateFn] and [callback@ThreadpoolWorkFn] to
+ * communicate.
  *
- * #VipsThreadState is a subclass of #VipsObject. Start functions are called
- * from allocate, that is, they are single-threaded.
+ * [class@ThreadState] is a subclass of [class@Object]. Start functions are
+ * called from allocate, that is, they are single-threaded.
  *
- * See also: vips_threadpool_run().
+ * ::: seealso
+ *     [func@threadpool_run].
  *
- * Returns: a new #VipsThreadState object, or NULL on error
+ * Returns: a new [class@ThreadState] object, or `NULL` on error
  */
 
 /**
  * VipsThreadpoolAllocateFn:
  * @state: per-thread state
  * @a: client data
- * @b: client data
- * @c: client data
  * @stop: set this to signal end of computation
  *
  * This function is called to allocate a new work unit for the thread. It is
  * always single-threaded, so it can modify per-pool state (such as a
  * counter).
  *
- * @a, @b, @c are the values supplied to the call to
- * vips_threadpool_run().
- *
- * It should set @stop to %TRUE to indicate that no work could be allocated
+ * It should set @stop to `TRUE` to indicate that no work could be allocated
  * because the job is done.
  *
- * See also: vips_threadpool_run().
+ * ::: seealso
+ *     [func@threadpool_run].
  *
  * Returns: 0 on success, or -1 on error
  */
@@ -588,17 +581,13 @@ vips_threadpool_new(VipsImage *im)
  * VipsThreadpoolWorkFn:
  * @state: per-thread state
  * @a: client data
- * @b: client data
- * @c: client data
  *
  * This function is called to process a work unit. Many copies of this can run
  * at once, so it should not write to the per-pool state. It can write to
  * per-thread state.
  *
- * @a, @b, @c are the values supplied to the call to
- * vips_threadpool_run().
- *
- * See also: vips_threadpool_run().
+ * ::: seealso
+ *     [func@threadpool_run].
  *
  * Returns: 0 on success, or -1 on error
  */
@@ -606,13 +595,12 @@ vips_threadpool_new(VipsImage *im)
 /**
  * VipsThreadpoolProgressFn:
  * @a: client data
- * @b: client data
- * @c: client data
  *
  * This function is called by the main thread once for every work unit
  * processed. It can be used to give the user progress feedback.
  *
- * See also: vips_threadpool_run().
+ * ::: seealso
+ *     [func@threadpool_run].
  *
  * Returns: 0 on success, or -1 on error
  */
@@ -620,10 +608,10 @@ vips_threadpool_new(VipsImage *im)
 /**
  * vips_threadpool_run:
  * @im: image to loop over
- * @start: allocate per-thread state
- * @allocate: allocate a work unit
- * @work: process a work unit
- * @progress: give progress feedback about a work unit, or %NULL
+ * @start: (scope async): allocate per-thread state
+ * @allocate: (scope async): allocate a work unit
+ * @work: (scope async): process a work unit
+ * @progress: (scope async): give progress feedback about a work unit, or `NULL`
  * @a: client data
  *
  * This function runs a set of threads over an image. Each thread first calls
@@ -631,17 +619,18 @@ vips_threadpool_new(VipsImage *im)
  * @allocate to set up a new work unit (perhaps the next tile in an image, for
  * example), then @work to process that work unit. After each unit is
  * processed, @progress is called, so that the operation can give
- * progress feedback. @progress may be %NULL.
+ * progress feedback. @progress may be `NULL`.
  *
  * The object returned by @start must be an instance of a subclass of
- * #VipsThreadState. Use this to communicate between @allocate and @work.
+ * [class@ThreadState]. Use this to communicate between @allocate and @work.
  *
  * @allocate and @start are always single-threaded (so they can write to the
  * per-pool state), whereas @work can be executed concurrently. @progress is
  * always called by
- * the main thread (ie. the thread which called vips_threadpool_run()).
+ * the main thread (ie. the thread which called [func@threadpool_run]).
  *
- * See also: vips_concurrency_set().
+ * ::: seealso
+ *     [func@concurrency_set].
  *
  * Returns: 0 on success, or -1 on error.
  */

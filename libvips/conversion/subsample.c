@@ -302,11 +302,7 @@ vips_subsample_init(VipsSubsample *subsample)
  * @out: (out): output image
  * @xfac: horizontal shrink factor
  * @yfac: vertical shrink factor
- * @...: %NULL-terminated list of optional named arguments
- *
- * Optional arguments:
- *
- * * @point: turn on point sample mode
+ * @...: `NULL`-terminated list of optional named arguments
  *
  * Subsample an image by an integer fraction. This is fast, nearest-neighbour
  * shrink.
@@ -318,7 +314,11 @@ vips_subsample_init(VipsSubsample *subsample)
  * If @point is set, @in will always be sampled in points. This can be faster
  * if the previous operations in the pipeline are very slow.
  *
- * See also: vips_affine(), vips_shrink(), vips_zoom().
+ * ::: tip "Optional arguments"
+ *     * @point: `gboolean`, turn on point sample mode
+ *
+ * ::: seealso
+ *     [method@Image.affine], [method@Image.shrink], [method@Image.zoom].
  *
  * Returns: 0 on success, -1 on error.
  */

@@ -765,7 +765,7 @@ im_wrapmany(IMAGE **in, IMAGE *out, im_wrapmany_fn fn, void *a, void *b)
 	bun->a = a;
 	bun->b = b;
 
-	/* Check descriptors --- make sure that our caller has done this
+	/* Check descriptors -- make sure that our caller has done this
 	 * correctly.
 	 */
 	for (i = 0; i < n; i++) {
@@ -5707,7 +5707,7 @@ im__insert_base(const char *domain,
  *
  * The two input images are cast up to the smallest common type (see table
  * Smallest common format in
- * <link linkend="VIPS-arithmetic">arithmetic</link>).
+ * [arithmetic](libvips-arithmetic.html)).
  *
  * See also: im_insert(), im_lrjoin().
  *

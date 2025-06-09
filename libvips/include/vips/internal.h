@@ -107,6 +107,10 @@ int vips__exif_update(VipsImage *image);
 
 void vips_check_init(void);
 
+/* Set from the command-line.
+ */
+extern gboolean vips__vector_enabled;
+
 void vips__vector_init(void);
 
 void vips__meta_init_types(void);
@@ -148,9 +152,18 @@ extern char *vips__disc_threshold;
 extern gboolean vips__cache_dump;
 extern gboolean vips__cache_trace;
 
+extern float vips_v2Y_16[65536];
+
 void vips__thread_init(void);
 void vips__threadpool_init(void);
 void vips__threadpool_shutdown(void);
+
+typedef struct _VipsThreadset VipsThreadset;
+VipsThreadset *vips_threadset_new(int max_threads);
+int vips_threadset_run(VipsThreadset *set,
+	const char *domain, GFunc func, gpointer data);
+void vips_threadset_free(VipsThreadset *set);
+
 VIPS_API void vips__worker_lock(GMutex *mutex);
 VIPS_API void vips__worker_cond_wait(GCond *cond, GMutex *mutex);
 
@@ -159,6 +172,10 @@ void vips__cache_init(void);
 int vips__print_renders(void);
 int vips__type_leak(void);
 int vips__object_leak(void);
+
+#ifdef HAVE_OPENSLIDE
+int vips__openslideconnection_leak(void);
+#endif /*HAVE_OPENSLIDE*/
 
 /* iofuncs
  */
@@ -218,12 +235,9 @@ VIPS_API
 int vips__write_header_bytes(VipsImage *im, unsigned char *to);
 int vips__image_meta_copy(VipsImage *dst, const VipsImage *src);
 
-extern GMutex *vips__global_lock;
+extern GMutex vips__global_lock;
 
 int vips_image_written(VipsImage *image);
-void vips_image_preeval(VipsImage *image);
-void vips_image_eval(VipsImage *image, guint64 processed);
-void vips_image_posteval(VipsImage *image);
 
 /* Defined in `vips.h`, unless building with `-Ddeprecated=false`
  */
@@ -312,9 +326,11 @@ VIPS_API
 void vips__premultiplied_bgra2rgba(guint32 *restrict p, int n);
 VIPS_API
 void vips__rgba2bgra_premultiplied(guint32 *restrict p, int n);
+void vips__premultiplied_rgb1282scrgba(float *p, int n);
 void vips__bgra2rgba(guint32 *restrict p, int n);
 void vips__Lab2LabQ_vec(VipsPel *out, float *in, int width);
 void vips__LabQ2Lab_vec(float *out, VipsPel *in, int width);
+void vips_col_make_tables_RGB_16(void);
 
 #ifdef DEBUG_LEAK
 extern GQuark vips__image_pixels_quark;
@@ -330,7 +346,7 @@ typedef struct _VipsImagePixels {
 } VipsImagePixels;
 
 int vips__foreign_convert_saveable(VipsImage *in, VipsImage **ready,
-	VipsSaveable saveable, VipsBandFormat *format, VipsCoding *coding,
+	VipsForeignSaveable saveable, VipsBandFormat *format, VipsForeignCoding coding,
 	VipsArrayDouble *background);
 
 int vips_foreign_load(const char *filename, VipsImage **out, ...)
@@ -351,6 +367,10 @@ VipsWindow *vips_window_take(VipsWindow *window,
 
 int vips__profile_set(VipsImage *image, const char *name);
 
+void vips__thread_profile_attach(const char *thread_name);
+void vips__thread_profile_detach(void);
+void vips__thread_profile_stop(void);
+
 int vips__lrmosaic(VipsImage *ref, VipsImage *sec, VipsImage *out,
 	int bandno,
 	int xref, int yref, int xsec, int ysec,
@@ -367,6 +387,48 @@ int vips__correl(VipsImage *ref, VipsImage *sec,
 	int xref, int yref, int xsec, int ysec,
 	int hwindowsize, int hsearchsize,
 	double *correlation, int *x, int *y);
+
+unsigned int vips_operation_hash(VipsOperation *operation);
+
+int vips__open_read(const char *filename);
+FILE *vips__fopen(const char *filename, const char *mode);
+
+char *vips__file_read_name(const char *name, const char *fallback_dir,
+	size_t *length_out);
+int vips__file_write(void *data, size_t size, size_t nmemb, FILE *stream);
+
+int vips__fgetc(FILE *fp);
+
+GValue *vips__gvalue_ref_string_new(const char *text);
+void vips__gslist_gvalue_free(GSList *list);
+GSList *vips__gslist_gvalue_copy(const GSList *list);
+GSList *vips__gslist_gvalue_merge(GSList *a, const GSList *b);
+char *vips__gslist_gvalue_get(const GSList *list);
+
+gint64 vips__seek_no_error(int fd, gint64 pos, int whence);
+
+int vips__ftruncate(int fd, gint64 pos);
+
+const char *vips__token_must(const char *buffer, VipsToken *token,
+	char *string, int size);
+const char *vips__token_need(const char *buffer, VipsToken need_token,
+	char *string, int size);
+const char *vips__token_segment(const char *p, VipsToken *token,
+	char *string, int size);
+const char *vips__token_segment_need(const char *p, VipsToken need_token,
+	char *string, int size);
+const char *vips__find_rightmost_brackets(const char *p);
+
+void vips__change_suffix(const char *name, char *out, int mx,
+	const char *new_suff, const char **olds, int nolds);
+
+guint32 vips__random(guint32 seed);
+guint32 vips__random_add(guint32 seed, int value);
+
+const char *vips__icc_dir(void);
+const char *vips__windows_prefix(void);
+
+char *vips__get_iso8601(void);
 
 #ifdef __cplusplus
 }

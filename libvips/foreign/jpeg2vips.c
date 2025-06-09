@@ -230,7 +230,7 @@ source_init_source(j_decompress_ptr cinfo)
 	 */
 }
 
-/* Fill the input buffer --- called whenever buffer is emptied.
+/* Fill the input buffer -- called whenever buffer is emptied.
  */
 static boolean
 source_fill_input_buffer(j_decompress_ptr cinfo)
@@ -412,7 +412,7 @@ static int
 readjpeg_free(ReadJpeg *jpeg)
 {
 	if (jpeg->eman.pub.num_warnings != 0) {
-		g_warning(_("read gave %ld warnings"),
+		g_warning("read gave %ld warnings",
 			jpeg->eman.pub.num_warnings);
 		g_warning("%s", vips_error_buffer());
 
@@ -654,7 +654,7 @@ read_jpeg_header(ReadJpeg *jpeg, VipsImage *out)
 			break;
 
 		default:
-			g_warning("%s", _("unknown JFIF resolution unit"));
+			g_warning("unknown JFIF resolution unit");
 			break;
 		}
 
@@ -896,7 +896,7 @@ read_jpeg_generate(VipsRegion *out_region,
 		VIPS_GATE_STOP("read_jpeg_generate: work");
 
 #ifdef DEBUG
-		printf("read_jpeg_generate: longjmp() exit\n");
+		printf("read_jpeg_generate() exit\n");
 #endif /*DEBUG*/
 
 		return -1;

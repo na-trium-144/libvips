@@ -252,7 +252,7 @@ struct _VipsImage {
 	VipsStopFn stop_fn;
 	void *client1; /* user arguments */
 	void *client2;
-	GMutex *sslock;		   /* start-stop lock */
+	GMutex sslock;		   /* start-stop lock */
 	GSList *regions;	   /* list of regions current for this image */
 	VipsDemandStyle dhint; /* demand style hint */
 
@@ -367,8 +367,6 @@ typedef struct _VipsImageClass {
 
 } VipsImageClass;
 
-/* Don't put spaces around void here, it breaks gtk-doc.
- */
 VIPS_API
 GType vips_image_get_type(void);
 
@@ -443,6 +441,13 @@ void vips_image_minimise_all(VipsImage *image);
 
 VIPS_API
 gboolean vips_image_is_sequential(VipsImage *image);
+
+VIPS_API
+void vips_image_preeval(VipsImage *image);
+VIPS_API
+void vips_image_eval(VipsImage *image, guint64 processed);
+VIPS_API
+void vips_image_posteval(VipsImage *image);
 
 VIPS_API
 void vips_image_set_progress(VipsImage *image, gboolean progress);

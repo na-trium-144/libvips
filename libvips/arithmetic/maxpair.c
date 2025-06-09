@@ -70,7 +70,7 @@ G_DEFINE_TYPE(VipsMaxpair, vips_maxpair, VIPS_TYPE_BINARY);
 		TYPE *restrict q = (TYPE *) out; \
 \
 		for (int x = 0; x < sz; x++) \
-			q[x] = VIPS_FMAX(left[x], right[x]); \
+			q[x] = fmax(left[x], right[x]); \
 	}
 
 static void
@@ -161,15 +161,16 @@ vips_maxpair_init(VipsMaxpair *maxpair)
 }
 
 /**
- * vips_maxpair:
+ * vips_maxpair: (method)
  * @left: input image
  * @right: input image
  * @out: (out): output image
- * @...: %NULL-terminated list of optional named arguments
+ * @...: `NULL`-terminated list of optional named arguments
  *
  * For each pixel, pick the maximum of a pair of images.
  *
- * See also: vips_minpair().
+ * ::: seealso
+ *     [method@Image.minpair].
  *
  * Returns: 0 on success, -1 on error
  */

@@ -151,6 +151,16 @@ VIPS_DEPRECATED_FOR(g_warning)
 void im_warning(const char *fmt, ...)
 	G_GNUC_PRINTF(1, 2);
 
+VIPS_DEPRECATED_FOR(g_mutex_init)
+GMutex *vips_g_mutex_new(void);
+VIPS_DEPRECATED_FOR(g_mutex_clear)
+void vips_g_mutex_free(GMutex *);
+
+VIPS_DEPRECATED_FOR(g_cond_init)
+GCond *vips_g_cond_new(void);
+VIPS_DEPRECATED_FOR(g_cond_clear)
+void vips_g_cond_free(GCond *);
+
 VIPS_DEPRECATED_FOR(g_thread_join)
 void *vips_g_thread_join(GThread *thread);
 
@@ -354,7 +364,7 @@ int im_rank_raw(IMAGE *in, IMAGE *out, int xsize, int ysize, int order);
  *
  * Set jpeg subsampling mode.
  *
- * DEPRECATED: use #VipsForeignSubsample
+ * DEPRECATED: use [enum@ForeignSubsample]
  */
 typedef enum {
 	VIPS_FOREIGN_JPEG_SUBSAMPLE_AUTO,
@@ -459,6 +469,24 @@ int vips_vsnprintf(char *str, size_t size, const char *format, va_list ap);
 VIPS_DEPRECATED_FOR(g_snprintf)
 int vips_snprintf(char *str, size_t size, const char *format, ...)
 	G_GNUC_PRINTF(3, 4);
+
+/* This has been deprecated and replaced by VipsForeignSaveable.
+ */
+typedef enum /*< skip >*/ {
+	VIPS_SAVEABLE_ANY =
+		VIPS_FOREIGN_SAVEABLE_ANY,
+	VIPS_SAVEABLE_MONO =
+		VIPS_FOREIGN_SAVEABLE_MONO,
+	VIPS_SAVEABLE_RGB =
+		VIPS_FOREIGN_SAVEABLE_MONO | VIPS_FOREIGN_SAVEABLE_RGB,
+	VIPS_SAVEABLE_RGBA =
+		VIPS_SAVEABLE_RGB | VIPS_FOREIGN_SAVEABLE_ALPHA,
+	VIPS_SAVEABLE_RGBA_ONLY =
+		VIPS_FOREIGN_SAVEABLE_RGB | VIPS_FOREIGN_SAVEABLE_ALPHA,
+	VIPS_SAVEABLE_RGB_CMYK =
+		VIPS_SAVEABLE_RGB | VIPS_FOREIGN_SAVEABLE_CMYK,
+	VIPS_SAVEABLE_LAST = 99,
+} VipsSaveable;
 
 #ifdef __cplusplus
 }
